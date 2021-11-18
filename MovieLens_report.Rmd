@@ -2,11 +2,15 @@
 title: "HarvardX - Data Science  \n   MovieLens Project"
 author: "Dieter Reinwald"
 date: '2021'
-output: 
+output:
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
   pdf_document:
-    toc: true
+    toc: yes
     toc_depth: 2
-    number_sections: true
+    number_sections: yes
 ---
 
 ```{r setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
@@ -83,35 +87,37 @@ For importing the data, we first load the data from the publicly available [movi
 # https://grouplens.org/datasets/movielens/10m/
 # http://files.grouplens.org/datasets/movielens/ml-10m.zip
 
-dl <- tempfile()
-download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
-ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
-                 col.names = c("userId", "movieId", "rating", "timestamp"))
-movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
-colnames(movies) <- c("movieId", "title", "genres")
-
-movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(movieId),
-                                           title = as.character(title),
-                                           genres = as.character(genres))
-
-movielens <- left_join(ratings, movies, by = "movieId")
-
-# Validation set will be 10% of MovieLens data
-set.seed(1, sample.kind="Rounding")
-test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
-edx <- movielens[-test_index,]
-temp <- movielens[test_index,]
-
-# Make sure userId and movieId in validation set are also in edx set
-validation <- temp %>% 
-      semi_join(edx, by = "movieId") %>%
-      semi_join(edx, by = "userId")
-
-# Add rows removed from validation set back into edx set
-removed <- anti_join(temp, validation)
-edx <- rbind(edx, removed)
-
-rm(dl, ratings, movies, test_index, temp, movielens, removed)
+# dl <- tempfile()
+# download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+# ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
+#                  col.names = c("userId", "movieId", "rating", "timestamp"))
+# movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
+# colnames(movies) <- c("movieId", "title", "genres")
+# 
+# movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(movieId),
+#                                            title = as.character(title),
+#                                            genres = as.character(genres))
+# 
+# movielens <- left_join(ratings, movies, by = "movieId")
+# 
+# # Validation set will be 10% of MovieLens data
+# set.seed(1, sample.kind="Rounding")
+# test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
+# edx <- movielens[-test_index,]
+# temp <- movielens[test_index,]
+# 
+# # Make sure userId and movieId in validation set are also in edx set
+# validation <- temp %>% 
+#       semi_join(edx, by = "movieId") %>%
+#       semi_join(edx, by = "userId")
+# 
+# # Add rows removed from validation set back into edx set
+# removed <- anti_join(temp, validation)
+# edx <- rbind(edx, removed)
+# 
+# rm(dl, ratings, movies, test_index, temp, movielens, removed)
+load("edx.Rdata")
+load("validation.Rdata")
 ```
 
 # Preprocess, explore and visualize data
@@ -1152,19 +1158,19 @@ The last model we use is the generalized linear model (GLM). We apply that model
 ```{r model 18}
 #################################################
 # Model 18 - generalized linear model (GLM)
-train_glm <- train(rating ~ movieId + userId, method = "glm", data = edx_train)
-
-model18_predict <- predict(train_glm, edx_test)
-
-rmse_model_18 <- RMSE(edx_test$rating, model18_predict)
-
-rmse_results <- bind_rows(rmse_results,
-                          data.frame(modelid = 18,
-                                     method = "generalized linear model (movieId + userId)",
-                                     RMSE = rmse_model_18,
-                                     delta_model_target = rmse_model_18 - target_value))
-
-rmse_results %>% knitr::kable()
+# train_glm <- train(rating ~ movieId + userId, method = "glm", data = edx_train)
+# 
+# model18_predict <- predict(train_glm, edx_test)
+# 
+# rmse_model_18 <- RMSE(edx_test$rating, model18_predict)
+# 
+# rmse_results <- bind_rows(rmse_results,
+#                           data.frame(modelid = 18,
+#                                      method = "generalized linear model (movieId + userId)",
+#                                      RMSE = rmse_model_18,
+#                                      delta_model_target = rmse_model_18 - target_value))
+# 
+# rmse_results %>% knitr::kable()
 ```
 
 ## Model 19 - gamLOESS
@@ -1174,24 +1180,24 @@ We use the local weighted regression (loess) model with the two predictors movie
 ```{r model 19}
 #################################################
 # Model 19 - local weighted regression (LOESS)
-train_loess <- train(rating ~ movieId + userId, method = "gamLoess", data = edx_train)
-
-model19_predict <- predict(train_loess, edx_test)
-
-rmse_model_19 <- RMSE(edx_test$rating, model19_predict)
-
-rmse_results <- bind_rows(rmse_results,
-                          data.frame(modelid = 19,
-                                     method = "gamLOESS",
-                                     RMSE = rmse_model_19,
-                                     delta_model_target = rmse_model_19 - target_value))
-
-rmse_results %>% knitr::kable()
-
-#Best model index finally
-best_model_index <- which.min(rmse_results$delta_model_target) 
-best_modelid <- rmse_results$modelid[best_model_index]
-best_method <- rmse_results$method[best_model_index]
+# train_loess <- train(rating ~ movieId + userId, method = "gamLoess", data = edx_train)
+# 
+# model19_predict <- predict(train_loess, edx_test)
+# 
+# rmse_model_19 <- RMSE(edx_test$rating, model19_predict)
+# 
+# rmse_results <- bind_rows(rmse_results,
+#                           data.frame(modelid = 19,
+#                                      method = "gamLOESS",
+#                                      RMSE = rmse_model_19,
+#                                      delta_model_target = rmse_model_19 - target_value))
+# 
+# rmse_results %>% knitr::kable()
+# 
+# #Best model index finally
+# best_model_index <- which.min(rmse_results$delta_model_target) 
+# best_modelid <- rmse_results$modelid[best_model_index]
+# best_method <- rmse_results$method[best_model_index]
 ```
 
 # Results
