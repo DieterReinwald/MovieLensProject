@@ -6,7 +6,7 @@
 #################################################
 
 #################################################
-#### 1. Preparations ####
+#### Preparations ####
 #################################################
 
 #################################################
@@ -32,7 +32,7 @@ library(splines)
 library(foreach)
 
 #################################################
-#### 2. Import data ####
+#### Import data ####
 #################################################
 
 #################################################
@@ -68,10 +68,11 @@ validation <- temp %>%
 # Add rows removed from validation set back into edx set
 removed <- anti_join(temp, validation)
 edx <- rbind(edx, removed)
+
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
 #################################################
-#### 3. Preprocess, explore and visualize data  ####
+#### Preprocess, explore and visualize data  ####
 #################################################
 
 #################################################
@@ -79,8 +80,8 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
 # Overview about the structure and content
 dim(edx)
-summary(edx)
-head(edx)
+summary(edx) %>%  knitr::kable()
+head(edx)  %>%  knitr::kable()
 
 # Extract movie year from title and rating year, month, and day from variable timestamp
 edx <- edx %>% 
@@ -119,7 +120,7 @@ edx %>%
    geom_bar(color = "black") + 
    labs(title = "Distribution of ratings", x = "rating", y = "relative frequency") + 
    scale_x_continuous(breaks = c(0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5)) +
-   geom_vline(xintercept = rating_mean, col = "red", lty = 2)  #show rating mean in histogram
+   geom_vline(xintercept = rating_mean, col = "red", lty = 2) #show rating mean in histogram
 
 # Number of movies rated only once
 edx %>% 
@@ -149,23 +150,23 @@ edx %>% ggplot(aes(movie_year))+
    labs(title="Released movies per year")
 
 # Total movie ratings per genre
-edx_separated %>% 
-   group_by(genres) %>% 
-   summarise(count = n()) %>% 
-   mutate(genres = reorder(genres, count)) %>% 
+edx_separated %>%
+   group_by(genres) %>%
+   summarise(count = n()) %>%
+   mutate(genres = reorder(genres, count)) %>%
    ggplot(aes(genres, count)) +
-   geom_bar(stat = "identity") +
+   geom_bar(color = "black", stat = "identity") +
    labs(title ="Total movie ratings per genre", y = "count", x = "genre") +
    coord_flip() +
    theme(axis.text.y = element_text(size = 8)) +
-   scale_y_continuous(breaks = c(seq(0, 4000000, 500000)))
+   scale_y_continuous(breaks = c(seq(0, 4000000, 1000000)))
 
 # Distribution of movie ratings per genre
-edx_separated %>% 
+edx_separated %>%
    ggplot(aes(rating)) +
-   geom_bar(color = "black") + 
-   labs(title = "Distribution of ratings per genre", x = "rating", y = "count") + 
-   scale_x_continuous(breaks = c(seq(0.5, 5, 0.5))) +
+   geom_bar(color = "black") +
+   labs(title = "Distribution of ratings per genre", x = "rating", y = "count") +
+   scale_x_continuous(breaks = c(seq(1, 5, 1))) +
    scale_y_continuous(breaks = c(seq(0, 1250000, 300000))) +
    facet_wrap(genres ~ .)
 
@@ -178,11 +179,12 @@ edx %>%
    arrange(desc(mean_rating)) %>% 
    mutate(title = reorder(title, mean_rating)) %>% 
    ggplot(aes(title, mean_rating)) + 
-   geom_bar(stat = "identity") +
-   labs(title = "Top 10 most popular movies (with >= 1000 ratings)", 
+   geom_bar(color = "black", stat = "identity") +
+   labs(title = "Top 10 most popular movies \n (with >= 1000 ratings)", 
         x = "movie", y = "mean rating") + 
    coord_flip() +
-   theme(axis.text.y = element_text(size = 8))
+   theme(axis.text.y = element_text(size = 8)) + 
+   ylim(0,5)
 
 # Top 10 most unpopular movies (worst rated, with at least 1000 ratings)
 edx %>% 
@@ -193,11 +195,12 @@ edx %>%
    arrange(mean_rating) %>% 
    mutate(title = reorder(title, -mean_rating)) %>% 
    ggplot(aes(title, mean_rating)) + 
-   geom_bar(stat = "identity") +
-   labs(title = "Top 10 most unpopular movies (with >= 1000 ratings)", 
+   geom_bar(color = "black", stat = "identity") +
+   labs(title = "Top 10 most unpopular movies \n (with >= 1000 ratings)", 
         x = "movie", y = "mean rating") + 
    coord_flip() +
-   theme(axis.text.y = element_text(size = 8))
+   theme(axis.text.y = element_text(size = 8)) +
+   ylim(0,5)
 
 # MovieId histogram
 edx %>% 
@@ -234,7 +237,7 @@ d <- data.frame(userId = edx$userId,
 corrplot(cor(d), method = "number")
 
 #################################################
-#### 4. Findings ####
+#### Findings ####
 #################################################
 
 # Ratings over movieId
@@ -311,7 +314,7 @@ edx %>%
    ylim(0,5)
 
 #################################################
-#### 5. Modeling approach ####
+#### Modeling approach ####
 #################################################
 
 #################################################
@@ -377,18 +380,8 @@ rmse_results <- bind_rows(rmse_results,
 
 rmse_results %>% knitr::kable()
 
-# Define mean edx_train
-mu <- mean(edx_train$rating)
-mu
-
-
-
-
-
-
-
 #################################################
-#### 6. Train and compare different models ####
+#### Train and compare different models ####
 #################################################
 
 #################################################
@@ -699,6 +692,9 @@ rmse_results %>% knitr::kable()
 
 #Best model index so far
 best_model_index <- which.min(rmse_results$delta_model_target) 
+best_modelid <- rmse_results$modelid[best_model_index]
+best_method <- rmse_results$method[best_model_index]
+best_delta_model_target <- rmse_results$delta_model_target[best_model_index]
 
 #################################################
 # Model 14 - Linear model with movieId, userId, genres, and rating_year
@@ -758,6 +754,10 @@ rmse_results %>% knitr::kable()
 
 #Best model index so far
 best_model_index <- which.min(rmse_results$delta_model_target) 
+best_modelid <- rmse_results$modelid[best_model_index]
+best_method <- rmse_results$method[best_model_index]
+best_rmse <- rmse_results$RMSE[best_model_index]
+best_delta_model_target <- rmse_results$delta_model_target[best_model_index]
 
 #################################################
 # Model 16 - Linear model with movieId, userId, genres, movie_year, and rating_year
@@ -792,6 +792,9 @@ rmse_results %>% knitr::kable()
 
 #Best model index so far
 best_model_index <- which.min(rmse_results$delta_model_target) 
+best_modelid <- rmse_results$modelid[best_model_index]
+best_rmse <- rmse_results$RMSE[best_model_index]
+best_delta_model_target <- rmse_results$delta_model_target[best_model_index]
 
 #################################################
 # Model 17 - Regularized linear model  with movieId, userId, genres, rating_year, and movie_year 
@@ -894,9 +897,11 @@ rmse_results %>% knitr::kable()
 
 #Best model index finally
 best_model_index <- which.min(rmse_results$delta_model_target) 
+best_modelid <- rmse_results$modelid[best_model_index]
+best_method <- rmse_results$method[best_model_index]
 
 #################################################
-#### 7. Results
+#### Results
 #################################################
 
 #################################################
@@ -948,7 +953,7 @@ final_predict <-
 summary(final_predict) 
 
 # Get titles of movies with no rating
-validation %>% filter(is.na(final_predict)) %>% pull(title, rating)
+validation %>% filter(is.na(final_predict)) %>% pull(title, rating) %>% knitr::kable()
 
 # Replace NA's with average rating
 final_predict <- replace(final_predict, is.na(final_predict), mu) 
