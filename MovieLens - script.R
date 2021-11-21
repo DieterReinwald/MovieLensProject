@@ -16,6 +16,7 @@ if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
 if(!require(corrplot)) install.packages("corrplot", repos = "http://cran.us.r-project.org")
 if(!require(gam)) install.packages("gam", repos = "http://cran.us.r-project.org")
+if(!require(timeR)) install.packages("timeR", repos = "http://cran.us.r-project.org")
 
 library(tidyverse)
 library(caret)
@@ -30,10 +31,18 @@ library(matrixStats)
 library(gam)
 library(splines)
 library(foreach)
+library(timeR)
+
+#################################################
+#Create a timer object to track times for different sections
+mytimer <- createTimer(verbose = FALSE)
 
 #################################################
 #### Import data ####
 #################################################
+
+# Start timer
+mytimer$start("Import data")
 
 #################################################
 # Create edx set, validation set (final hold-out test set) 
@@ -71,9 +80,15 @@ edx <- rbind(edx, removed)
 
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
+#Stop timer
+mytimer$stop("Import data")
+
 #################################################
 #### Preprocess, explore and visualize data  ####
 #################################################
+
+#Start timer
+mytimer$start("Preprocess, explore, visualize data")
 
 #################################################
 #### Preprocessing
@@ -101,7 +116,9 @@ validation <- validation %>%
           movieId = as.integer(movieId)) #convert movieId to integer
 
 # Separate genres for each movie
-edx_separated <- edx %>% separate_rows(genres, sep = "\\|")
+edx_separated <- edx %>% 
+   select(rating, genres) %>% 
+   separate_rows(genres, sep = "\\|")
 
 #################################################
 ####  Data exploration and visualization
@@ -236,9 +253,18 @@ d <- data.frame(userId = edx$userId,
 
 corrplot(cor(d), method = "number")
 
+# Remove data frame, save space
+rm(d)
+
+#Stop timer
+mytimer$stop("Preprocess, explore, visualize data")
+
 #################################################
 #### Findings ####
 #################################################
+
+#Start timer
+mytimer$start("Findings")
 
 # Ratings over movieId
 edx %>% 
@@ -268,6 +294,9 @@ edx_separated %>%
    labs(title="genres", y="rating") +
    ylim(0,5) + 
    theme(axis.text.x = element_text(angle = 90,hjust = 1))
+
+# Remove object edx_separated since not needed anymore, save space
+rm(edx_separated)
 
 # Ratings over movie_year
 edx %>% 
@@ -313,9 +342,15 @@ edx %>%
    labs(title = "rating_day", y="rating") +
    ylim(0,5)
 
+#Stop timer
+mytimer$stop("Findings")
+
 #################################################
 #### Modeling approach ####
 #################################################
+
+#Start timer
+mytimer$start("Modeling approach")
 
 #################################################
 ## Reduce the data set by unnecessary variables
@@ -380,9 +415,15 @@ rmse_results <- bind_rows(rmse_results,
 
 rmse_results %>% knitr::kable()
 
+#Stop timer
+mytimer$stop("Modeling approach")
+
 #################################################
 #### Train and compare different models ####
 #################################################
+
+#Start timer
+mytimer$start("Train and compare different models")
 
 #################################################
 # Model 1 - Average
@@ -900,9 +941,15 @@ best_model_index <- which.min(rmse_results$delta_model_target)
 best_modelid <- rmse_results$modelid[best_model_index]
 best_method <- rmse_results$method[best_model_index]
 
+#Stop timer
+mytimer$stop("Train and compare different models")
+
 #################################################
 #### Results
 #################################################
+
+#Start timer
+mytimer$start("Results")
 
 #################################################
 # Calculate with best lambda based on cross-validation
@@ -968,3 +1015,12 @@ rmse_results <- bind_rows(rmse_results,
                                      delta_model_target = final_model_rmse - target_value))                                     
 
 rmse_results %>% knitr::kable()
+
+#Stop timer
+mytimer$stop("Results")
+
+#Get timer summary
+getTimer(mytimer) %>%  
+   mutate(timeElapsed_min = round(as.numeric(timeElapsed/60),2)) %>%
+   select(event, start, end, timeElapsed_min) %>% 
+   knitr::kable()
