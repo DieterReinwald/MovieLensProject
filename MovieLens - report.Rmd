@@ -3,10 +3,6 @@ title: "HarvardX - Data Science  \n   MovieLens Project"
 author: "Dieter Reinwald"
 date: '2021'
 output:
-  html_document:
-    toc: yes
-    toc_depth: '2'
-    df_print: paged
   pdf_document:
     toc: yes
     toc_depth: 2
@@ -128,16 +124,6 @@ removed <- anti_join(temp, validation)
 edx <- rbind(edx, removed)
 
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
-
-#####################
-#####################
-#####################
-#####################WICHTIG TODO REMOVE
-load("edx.Rdata")
-load("validation.Rdata")
-#####################
-#####################
-#####################
 ```
 
 ```{r stop timer import data}
