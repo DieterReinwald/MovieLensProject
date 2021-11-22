@@ -922,7 +922,7 @@ rmse_results %>% knitr::kable()
 
 #################################################
 # Model 19 - local weighted regression (LOESS)
-train_loess <- train(rating ~ movieId + userId, method = "gamLoess", data = edx_train)
+train_loess <- train(rating ~ movieId, method = "gamLoess", data = edx_train)
 
 model19_predict <- predict(train_loess, edx_test)
 
