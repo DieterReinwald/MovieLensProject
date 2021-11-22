@@ -14,42 +14,42 @@ output:
 ---
 
 ```{r setup, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
-knitr::opts_chunk$set(echo = FALSE, fig.height = 7, fig.width = 10, fig.align = "center", message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, fig.height = 3, fig.width = 4, fig.align = "center", message = FALSE, warning = FALSE)
 ```
-
+\newpage
 # Executive summary
 
 The goal of this project is to predict movie ratings for users based on a set of predictors. The data set used is the publicly available movielens database. Using the loss function root mean square error (RMSE), we compare different models and apply the best one to a validation set in order to compare the predictions with true ratings. The final model found had an RMSE below the target of 0.86490.
 
 # Overview
 
-The followings steps will be performed to reach the goal:
+The following steps will be performed to reach the goal:
 
-1. Import data
+1.  Import data
 
-The required data is imported from the publicly available [movielens database](https://grouplens.org/datasets/movielens/10m). Subsequently, the provided code is used, which automatically creates the data sets *edx* and *validation*. The data set *edx* is used to train and test the different models, while the *validation*"* data set is used to validate the best model due to the its performance.
+The required data is imported from the publicly available [movielens database](https://grouplens.org/datasets/movielens/10m). Subsequently, the provided code is used, which automatically creates the data sets *edx* and *validation*. The data set *edx* is used to train and test the different models, while the *validation* data set is used to validate the best model due to the its performance.
 
 2.  Preprocess, explore and visualize data
 
 We start with general analyses that are the basis for some preprocessing steps. To gain a deeper understanding of the data, it is subsequently analyzed. For visualization we use histograms, other plots and a correlation analysis.
 
-3. Findings
+3.  Findings
 
 From the presented graphs and smooth plots we draw conclusions for the usability of the variables as predictors.
 
-4. Modeling approach
+4.  Modeling approach
 
 We take the steps needed for training and testing, i.e. the reduction of the data set by unneeded variables, the split of the data into train and test set, and the definition of the loss function RMSE. Additionally, we create a data frame to gather and compare the individual model results to the target value of 0.86490.
 
-5. Train and compare different models
+5.  Train and compare different models
 
 In total, we use 19 different approaches to identify the best performing model. These are, e.g. linear models, a generalized linear model as well as a loess model. The different performances are also directly discussed.
 
-6. Results
+6.  Results
 
 The best model is selected and applied on the validation set to compare with true ratings. Although, we present and discuss the different model results after each analysis, in this section we give an overall result discussion.
 
-7. Conclusion
+7.  Conclusion
 
 Finally, we make a brief summary of the report, its limitations and show potential approaches and ideas for future work.
 
@@ -61,6 +61,7 @@ if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
 if(!require(corrplot)) install.packages("corrplot", repos = "http://cran.us.r-project.org")
 if(!require(gam)) install.packages("gam", repos = "http://cran.us.r-project.org")
+if(!require(timeR)) install.packages("timeR", repos = "http://cran.us.r-project.org")
 library(tidyverse)
 library(caret)
 library(data.table)
@@ -74,9 +75,20 @@ library(matrixStats)
 library(gam)
 library(splines)
 library(foreach)
+library(timeR)
+```
+
+```{r}
+#################################################
+#Create a timer object to track times for different sections
+mytimer <- createTimer(verbose = FALSE)
 ```
 
 # Import data
+```{r start timer import data}
+# Start timer
+mytimer$start("Import data")
+```
 
 For importing the data, we first load the data from the publicly available [movielens database](https://grouplens.org/datasets/movielens/10m). In the next steps we clean it and transform it into the two data sets *edx* and *validation*. The objects that are no longer required are deleted in order to have a smaller data set for the further steps.
 
@@ -87,42 +99,60 @@ For importing the data, we first load the data from the publicly available [movi
 # https://grouplens.org/datasets/movielens/10m/
 # http://files.grouplens.org/datasets/movielens/ml-10m.zip
 
-# dl <- tempfile()
-# download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
-# ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
-#                  col.names = c("userId", "movieId", "rating", "timestamp"))
-# movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
-# colnames(movies) <- c("movieId", "title", "genres")
-# 
-# movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(movieId),
-#                                            title = as.character(title),
-#                                            genres = as.character(genres))
-# 
-# movielens <- left_join(ratings, movies, by = "movieId")
-# 
-# # Validation set will be 10% of MovieLens data
-# set.seed(1, sample.kind="Rounding")
-# test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
-# edx <- movielens[-test_index,]
-# temp <- movielens[test_index,]
-# 
-# # Make sure userId and movieId in validation set are also in edx set
-# validation <- temp %>% 
-#       semi_join(edx, by = "movieId") %>%
-#       semi_join(edx, by = "userId")
-# 
-# # Add rows removed from validation set back into edx set
-# removed <- anti_join(temp, validation)
-# edx <- rbind(edx, removed)
-# 
-# rm(dl, ratings, movies, test_index, temp, movielens, removed)
+dl <- tempfile()
+download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
+                 col.names = c("userId", "movieId", "rating", "timestamp"))
+movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
+colnames(movies) <- c("movieId", "title", "genres")
+
+movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(movieId),
+                                           title = as.character(title),
+                                           genres = as.character(genres))
+
+movielens <- left_join(ratings, movies, by = "movieId")
+
+# Validation set will be 10% of MovieLens data
+set.seed(1, sample.kind="Rounding")
+test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
+edx <- movielens[-test_index,]
+temp <- movielens[test_index,]
+
+# Make sure userId and movieId in validation set are also in edx set
+validation <- temp %>%
+      semi_join(edx, by = "movieId") %>%
+      semi_join(edx, by = "userId")
+
+# Add rows removed from validation set back into edx set
+removed <- anti_join(temp, validation)
+edx <- rbind(edx, removed)
+
+rm(dl, ratings, movies, test_index, temp, movielens, removed)
+
+#####################
+#####################
+#####################
+#####################WICHTIG TODO REMOVE
 load("edx.Rdata")
 load("validation.Rdata")
+#####################
+#####################
+#####################
 ```
 
-# Preprocess, explore and visualize data
+```{r stop timer import data}
+#Stop timer
+mytimer$stop("Import data")
+```
 
-In this section we preprocess the data, explore, and visualize it to gain deeper findings about potential relationships between the different  variables.
+# Preprocess, explore, and visualize data
+
+```{r start timer preprocess explore visualize}
+#Start timer
+mytimer$start("Preprocess, explore, visualize data")
+```
+
+In this section we preprocess the data, explore, and visualize it to gain deeper findings about potential relationships between the different variables.
 
 ## Preprocessing
 
@@ -134,19 +164,21 @@ dim(edx)
 
 We further investigate the summary of the edx data first to check for general plausibility. The data quality looks good at first sight in terms of min, max and mean values. Additionally, the table does not contain NA's which makes it easy to continue in the analysis.
 
-```{r summary, echo=TRUE, fig.width=8}
-summary(edx)
+```{r summary}
+summary(edx) %>%  knitr::kable()
 ```
 
 If we look at the first rows of the imported data
 
-```{r head, echo=TRUE, fig.width=8}
-head(edx)
+```{r head }
+head(edx)  %>%  knitr::kable()
 ```
+\newpage
+we will detect that:
 
-we will detect that: 
-- besides the actual movie title the variable *title* contains the year when the movie was released. We will extract this information as the new column *movie_year* to be able to use it in further analyses. 
-- the variable *timestamp* is formatted as integer, representing the seconds since 1970-01-01. The data will be mutated to include the new columns (for data sets edx and validation). Hint: Since integer values use only half of the memory compared to numeric the columns with natural numbers will be converted to integer.
+-   besides the actual movie title the variable *title* contains the year when the movie was released. We will extract this information as the new column *movie_year* to be able to use it in further analyses.
+
+-   the variable *timestamp* is formatted as integer, representing the seconds since 1970-01-01. The data will be mutated to include the new columns (for data sets edx and validation). Hint: Since integer values use only half of the memory compared to numeric the columns with natural numbers will be converted to integer.
 
 ```{r movie year and timestamp conversion}
 # Extract movie year from title and rating year, month, and day from variable timestamp
@@ -167,24 +199,26 @@ validation <- validation %>%
            movieId = as.integer(movieId)) #convert movieId to integer
 ```
 
--  the variable *genres* contains multiple entries which is hard to investigate in this form. We will add a normalized version of this variable for analyzing the genres in detail later on.
+-   the variable *genres* contains multiple entries which is hard to investigate in this form. We will add a normalized version of this variable for analyzing the genres in detail later on.
 
 ```{r separate genres}
 # Separate genres for each movie
-edx_separated <- edx %>% separate_rows(genres, sep = "\\|")
+edx_separated <- edx %>% 
+   select(rating, genres) %>% 
+   separate_rows(genres, sep = "\\|")
 ```
 
 ## Data exploration and visualization
 
 In this section, we will perform different analyses that provide an overview of the data. This will be accompanied by supporting data visualizations.
 
-In general, we find out quickly that there are `r edx %>% summarise(n = n_distinct(movieId))` distinct movies as well as `r edx %>% summarise(n = n_distinct(userId))` distinct users. 
+In general, we find out quickly that there are `r edx %>% summarise(n = n_distinct(movieId))` distinct movies as well as `r edx %>% summarise(n = n_distinct(userId))` distinct users.
 
 In terms of the distribution of ratings we see an overall average rating of `r mean(edx$rating)` which indicates that in the mean the ratings slightly more positive. The standard deviation for the ratings is `r sd(edx$rating)`.
 
 The following histogram *Distribution of ratings* displays the counts of the different ratings. The ratings range from 0.5 to 5 points. A rating of 4 was the most common compared to all other ratings. We can see that in general there are more full ratings compared to the number of half-point ratings. One reason for this could be that it is easier for users to give full ratings or harder to give half-point ratings.
 
-```{r distribution movie ratings, fig.height=4, fig.width=8}
+```{r distribution movie ratings}
 # Distribution of the movie ratings, including the rating mean
 rating_mean <- mean(edx$rating)
 
@@ -196,10 +230,10 @@ edx %>%
    geom_vline(xintercept = rating_mean, col = "red", lty = 2) #show rating mean in histogram
 ```
 
-We know that there are blockbusters (which are watched and thus maybe rated with higher probability) and independent movies (which are watch only by a few people). Thus, we could not assume that the films were rated similarly often. In the graph  *Top 20 most rated movies* we can see that this is indeed the case. Some movies have been rated quite often (e.g. Pulp Fiction 31362 times). On the other hand, analysis shows that `r edx %>% group_by(movieId) %>% summarise(count = n()) %>% filter(count == 1) %>% nrow()` movies were rated only once. We need to consider this for later analyses since they can distort the mean values. 
+\newpage
+We know that there are blockbusters (which are watched and thus maybe rated with higher probability) and independent movies (which are watch only by a few people). Thus, we could not assume that the films were rated similarly often. In the graph *Top 20 most rated movies* we can see that this is indeed the case. Some movies have been rated quite often (e.g. Pulp Fiction 31362 times). On the other hand, analysis shows that `r edx %>% group_by(movieId) %>% summarise(count = n()) %>% filter(count == 1) %>% nrow()` movies were rated only once. We need to consider this for later analyses since they can distort the mean values.
 
-
-```{r top 20 most rated movies, fig.height=5, fig.width=8}
+```{r top 20 most rated movies, fig.width=6}
 # Top 20 most rated movies due to number of ratings
 edx %>% 
    group_by(title) %>% 
@@ -211,20 +245,19 @@ edx %>%
    labs(title = "Top 20 most rated movies", y = "movie")
 ```
 
-In terms of temporal development the histogram *Ratings per year* shows different things: 
-- the data set contains ratings for the years `r min(edx$rating_year)` to `r max(edx$rating_year)`.
-- users rated movies particularly often in the years 1996, 2000, and 2005. In contrast, there were only very few ratings in the years 1995, 1998, and 2009 compared to other years.
+In terms of temporal development the histogram *Ratings per year* shows different things: - the data set contains ratings for the years `r min(edx$rating_year)` to `r max(edx$rating_year)`. - users rated movies particularly often in the years 1996, 2000, and 2005. In contrast, there were only very few ratings in the years 1995, 1998, and 2009 compared to other years.
 
-```{r distribution of movies rated, fig.height=4, fig.width=8}
+```{r distribution of movies rated, fig.width=5}
 # Distribution of movies rated over time
 edx %>% ggplot(aes(rating_year)) +
    geom_histogram(binwidth = 1, color = "black") +
    labs(title="Ratings per year")
 ```
 
+\newpage
 According to the histogram *Released movies per year* we see that around the years 1994 tto 1996 most movies rated have been released.
 
-```{r distribution of movies released, fig.height=6, fig.width=8}
+```{r distribution of movies released, fig.height=3.5, fig.width=6}
 # Distribution of movies released over time
 edx %>% ggplot(aes(movie_year)) +
    geom_histogram(binwidth = 1, color = "black") +
@@ -233,7 +266,7 @@ edx %>% ggplot(aes(movie_year)) +
 
 Analyzing the different genres, the histogram *Total movie ratings per genre* reveals that the genres drama, comedy, action, and thriller received the most ratings overall.
 
-```{r total movie ratings per genre, fig.height=5, fig.width=8}
+```{r total movie ratings per genre, fig.height=3.5, fig.width=5}
 # Total movie ratings per genre
 edx_separated %>%
    group_by(genres) %>%
@@ -244,25 +277,25 @@ edx_separated %>%
    labs(title ="Total movie ratings per genre", y = "count", x = "genre") +
    coord_flip() +
    theme(axis.text.y = element_text(size = 8)) +
-   scale_y_continuous(breaks = c(seq(0, 4000000, 500000)))
+   scale_y_continuous(breaks = c(seq(0, 4000000, 1000000)))
 ```
-
+\newpage
 Additionally, the histogram *Distribution of ratings per genre* shows that the rating of 4 is the most common in all these mentioned genres.
 
-```{r distribution of movie ratings per genre, fig.width=10, fig.height=7}
+```{r distribution of movie ratings per genre, fig.height=6, fig.width=6}
 # Distribution of movie ratings per genre
 edx_separated %>%
    ggplot(aes(rating)) +
    geom_bar(color = "black") +
    labs(title = "Distribution of ratings per genre", x = "rating", y = "count") +
-   scale_x_continuous(breaks = c(seq(0.5, 5, 0.5))) +
+   scale_x_continuous(breaks = c(seq(1, 5, 1))) +
    scale_y_continuous(breaks = c(seq(0, 1250000, 300000))) +
    facet_wrap(genres ~ .)
 ```
-
+\newpage
 In terms of the top 10 most popular (i.e. best rated) movies, histogram *Top 10 most popular movies (with \>= 1000 ratings)* shows the results where movies are only considered if they have at least 1000 ratings.
 
-```{r top 10 most popular movies, fig.height=4, fig.width=8}
+```{r top 10 most popular movies, fig.width=6}
 # Top 10 most popular movies (best rated, with at least 1000 ratings)
 edx %>% 
    group_by(title) %>% 
@@ -273,15 +306,16 @@ edx %>%
    mutate(title = reorder(title, mean_rating)) %>% 
    ggplot(aes(title, mean_rating)) + 
    geom_bar(color = "black", stat = "identity") +
-   labs(title = "Top 10 most popular movies (with >= 1000 ratings)", 
+   labs(title = "Top 10 most popular movies \n (with >= 1000 ratings)", 
         x = "movie", y = "mean rating") + 
    coord_flip() +
-   theme(axis.text.y = element_text(size = 8))
+   theme(axis.text.y = element_text(size = 8)) + 
+   ylim(0,5)
 ```
 
 On the other hand, histogram *Top 10 most unpopular movies (worst rated, with at least 1000 ratings)* shows the top 10 most unpopular movies (with at least 1000 ratings).
 
-```{r top 10 most unpopular movies, fig.height=4, fig.width=8}
+```{r top 10 most unpopular movies, fig.width=6}
 # Top 10 most unpopular movies (worst rated, with at least 1000 ratings)
 edx %>% 
    group_by(title) %>% 
@@ -292,15 +326,17 @@ edx %>%
    mutate(title = reorder(title, -mean_rating)) %>% 
    ggplot(aes(title, mean_rating)) + 
    geom_bar(color = "black", stat = "identity") +
-   labs(title = "Top 10 most unpopular movies (with >= 1000 ratings)", 
+   labs(title = "Top 10 most unpopular movies \n (with >= 1000 ratings)", 
         x = "movie", y = "mean rating") + 
    coord_flip() +
-   theme(axis.text.y = element_text(size = 8))
+   theme(axis.text.y = element_text(size = 8)) +
+   ylim(0,5)
 ```
 
+\newpage
 The following two histograms *movieId* and *userId* show that the range of occurrences is quite wide. For our analyses later on, we can observe this as plausible: there are movies and users that have a high number of ratings and, on the other hand, there are movies and users with very few ratings.
 
-```{r movieId histogram}
+```{r movieId histogram, fig.height=4, fig.width=6}
 # MovieId histogram
 edx %>% 
    ggplot(aes(movieId)) + 
@@ -308,7 +344,7 @@ edx %>%
    labs(title = "movieId") 
 ```
 
-```{r userId histogram}
+```{r userId histogram, fig.height=4, fig.width=6}
 # UserId histogram
 edx %>% 
    ggplot(aes(userId)) + 
@@ -316,9 +352,10 @@ edx %>%
    labs(title = "userId") 
 ```
 
+\newpage
 The scatterplot *Number of ratings per week* points out how the ratings develop over the weeks in the analyzed period from 1995 to 2009. The low number of ratings can explain the high outliers between 1995 and 2000 -- the means are not that representative compared to the following weeks.
 
-```{r number of ratings per week, fig.width=10, fig.height=8}
+```{r number of ratings per week, fig.height=4, fig.width=6}
 # Number of ratings per week
 edx %>% 
    mutate(date = as_datetime(timestamp), week = round_date(date, unit = "week")) %>% 
@@ -329,10 +366,10 @@ edx %>%
    geom_smooth() +
    labs(title = "Number of ratings per week", x = "week", y = "rating")
 ```
-
+\newpage
 The following correlation analysis helps us to find predictors that are highly correlated. These could be removed (if necessary) for the upcoming section.
 
-```{r correlation analysis}
+```{r correlation analysis, fig.height=5, fig.width=6}
 # Correlation analysis
 d <- data.frame(userId = edx$userId,
                 movieId = edx$movieId,
@@ -345,11 +382,24 @@ d <- data.frame(userId = edx$userId,
 
 # Plot the correlations
 corrplot(cor(d), method = "number")
+
+# Remove data frame, save space
+rm(d)
 ```
 
 As the correlation matrix shows there are only two perfectly correlated numeric variables: the timestamp and the rating_year variables. This is understandable since rating_year is directly derived from the variable timestamp during the preprocessing step. Thus, we will remove timestamp from both data sets edx and validation to accelerate data processing before training and testing the models. The slight correlation between movieId and timestamp (or rating_year respectively) shows that most ratings tend to happen shortly after the release date of the movie.
 
+```{r stop timer preprocess explore visualize}
+#Stop timer
+mytimer$stop("Preprocess, explore, visualize data")
+```
+
+\newpage
 # Findings
+```{r start timer findings}
+#Start timer
+mytimer$start("Findings")
+```
 
 The following graphs and smooth plots show the variation of the ratings according to particular variables. They will help to gain deeper insights in terms of the selection of the predictors. In addition, for some variables we also present both mean and standard error to confirm our assumption further.
 
@@ -357,7 +407,7 @@ The following graphs and smooth plots show the variation of the ratings accordin
 
 The variable movieId shows a particularly high variation in the ratings in graph *movieId*. Here all values from 0.5 to 5 are given. This is a strong indication that it should be used as a prediction due to the high variation.
 
-```{r ratings over movieId, fig.height=8, fig.width=10}
+```{r ratings over movieId, fig.height=5, fig.width=6}
 # Ratings over movieId
 edx %>% 
    group_by(movieId) %>%
@@ -367,12 +417,12 @@ edx %>%
    labs(title="movieId", y="rating") +
    ylim(0,5) 
 ```
-
+\newpage
 ## Variable userId
 
 Although the following graph *userId* looks quite confusing, it shows -- similar to the previous representation of movieId -- that there is a large variation regarding the ratings for the variable userId as well. Therefore, this variable is also considered as a predictor.
 
-```{r ratings over userId, fig.height=8, fig.width=10}
+```{r ratings over userId, fig.height=5, fig.width=6}
 # Ratings over userId 
 edx %>% 
    group_by(userId) %>%
@@ -382,12 +432,12 @@ edx %>%
    labs(title="userId", y="rating") +
    ylim(0,5) 
 ```
-
+\newpage
 ## Variable genres
 
 If we look at the genres (based on the separated genres prepared above), we notice that in the graph *genres* they differ also in the ratings, although this is not as clear as for the previous variables. Nevertheless, this variation makes this variable well suited as a predictor of ratings.
 
-```{r ratings over genres, fig.height=6, fig.width=8}
+```{r ratings over genres, fig.height=3, fig.width=6}
 # Ratings over genres
 edx_separated %>%
    group_by(genres) %>%
@@ -398,13 +448,15 @@ edx_separated %>%
    labs(title="genres", y="rating") +
    ylim(0,5) +
    theme(axis.text.x = element_text(angle = 90,hjust = 1))
-```
 
+# Remove object edx_separated since not needed anymore, save space
+rm(edx_separated)
+```
 ## Variable movie_year
 
 If we look more closely at the variable movie_year we can see that mean and standard error change as well. Furthermore, the smooth plot *movie_year* shows a decline in the mean rating after 1980. According to the findings above, we already know that movies with an early release year (movie year) have less ratings in general. However, these movies have better ratings on average. Thus, we will keep this variable movie_year as predictor.
 
-```{r ratings over movie_year}
+```{r ratings over movie_year, fig.height=3, fig.width=6}
 # Ratings over movie_year
 edx %>% 
    group_by(movie_year) %>%
@@ -421,7 +473,7 @@ edx %>%
 
 The smooth plot *rating_year* reveals that the ratings slightly change over the different years which could be therefore beneficial to define as predictor.
 
-```{r ratings over rating_year, message=FALSE, warning=FALSE}
+```{r ratings over rating_year, fig.height=3.5, fig.width=6}
 # Ratings over rating_year 
 edx %>% 
    group_by(rating_year) %>%
@@ -438,7 +490,7 @@ edx %>%
 
 In the last two smooth plots *rating_month* and *rating_day* respectively we can see that ratings on a monthly (left) and daily (right) basis do almost not change.
 
-```{r ratings over rating_month and rating_day, message=FALSE, fig.width=10, fig.height=10}
+```{r ratings over rating_month and rating_day, fig.height=3.5, fig.width=6}
 # Ratings over rating_month 
 edx %>% 
    group_by(rating_month )%>%
@@ -464,7 +516,18 @@ edx %>%
 
 These variables will not be considered as predictors in the following. Thus, we drop them from the data sets edx and validation in the next section.
 
+```{r stop timer findings}
+#Stop timer
+mytimer$stop("Findings")
+```
+
+\newpage
 # Modeling approach
+
+```{r start timer modeling approach}
+#Start timer
+mytimer$start("Modeling approach")
+```
 
 After all the preparations and analyses so far, the following section describes the modeling approach. For this purpose, the data set is first reduced by the variables identified in the above section that show almost no variation. Subsequently, the data set is split into train and test set and the loss function RMSE is defined. Finally, we come to the section's core: the training, testing and comparison of the individual models. In order to find the best model we will use the predictors as described previously and apply them individually or in combination.
 
@@ -538,8 +601,19 @@ For our further steps, we also need to define the rating mean of the train data 
 # Define mean edx_train
 mu <- mean(edx_train$rating)
 ```
+\newpage
+
+```{r stop timer modeling approach}
+#Stop timer
+mytimer$stop("Modeling approach")
+```
 
 # Train and compare different models
+
+```{r start timer Train and compare different models}
+#Start timer
+mytimer$start("Train and compare different models")
+```
 
 In this section, we will train the different prediction models and compare the outcomes to find the best model for the validation in the next step.
 
@@ -547,46 +621,46 @@ In this section, we will train the different prediction models and compare the o
 
 The following prediction models are described in the following:
 
-- Model 1 - Average
+-   Model 1 - Average
 
 Linear models with one predictor:
 
-- Model 2 - Linear model with movieId
-- Model 3 - Linear model with userId
+-   Model 2 - Linear model with movieId
+-   Model 3 - Linear model with userId
 
 Linear models with two predictors:
 
-- Model 4 - Linear model with movieId and userId
-- Model 5 - Linear model with movieId and rating_year
-- Model 6 - Linear model with movieId and movie_year
-- Model 7 - Linear model with movieId and genres
-- Model 8 - Linear model with userId and rating_year
-- Model 9 - Linear model with userId and movie_year
-- Model 10 - Linear model with userId and genres
+-   Model 4 - Linear model with movieId and userId
+-   Model 5 - Linear model with movieId and rating_year
+-   Model 6 - Linear model with movieId and movie_year
+-   Model 7 - Linear model with movieId and genres
+-   Model 8 - Linear model with userId and rating_year
+-   Model 9 - Linear model with userId and movie_year
+-   Model 10 - Linear model with userId and genres
 
 Linear models with three predictors:
 
-- Model 11 - Linear model with movieId, userId, and rating_year
-- Model 12 - Linear model with movieId, userId, and movie_year
-- Model 13 - Linear model with movieId, userId, and genres
+-   Model 11 - Linear model with movieId, userId, and rating_year
+-   Model 12 - Linear model with movieId, userId, and movie_year
+-   Model 13 - Linear model with movieId, userId, and genres
 
 Linear models with four predictors:
 
-- Model 14 - Linear model with movieId, userId, genres, and rating_year
-- Model 15 - Linear model with movieId, userId, genres, and movie_year
+-   Model 14 - Linear model with movieId, userId, genres, and rating_year
+-   Model 15 - Linear model with movieId, userId, genres, and movie_year
 
 Linear model with five predictors:
 
-- Model 16 - Linear model with movieId, userId, genres, rating_year, and movie_year
+-   Model 16 - Linear model with movieId, userId, genres, rating_year, and movie_year
 
 Regularized linear model:
 
-- Model 17 - Regularized linear model with movieId, userId, genres, rating_year, and movie_year
+-   Model 17 - Regularized linear model with movieId, userId, genres, rating_year, and movie_year
 
 GLM and LOESS models:
 
-- Model 18 - Generalized linear model (GLM)
-- Model 19 - gamLOESS
+-   Model 18 - Generalized linear model (GLM)
+-   Model 19 - gamLOESS
 
 As we can see, several linear models are used below. They apply one to five predictors and calculate the difference between the mean rating of the predictor(s) and the overall mean rating. Then, the outcome is used to calculate the prediction by adding this value to the mean. Finally, the best model is optimized by applying regularization. Furthermore, there are GLM and LOESS models that will be used.
 
@@ -1082,7 +1156,7 @@ The following graph shows for which lambda the RMSE becomes minimal.
 
 ```{r model 17}
 #################################################
-# Model 17 - Regularized linear model with movieId, userId, genres, rating_year, and movie_year 
+# Model 17 - Regularized linear model with movieId, userId, genres, rating_year, and movie_year
 
 set.seed(1, sample.kind = "Rounding")
 
@@ -1158,49 +1232,60 @@ The last model we use is the generalized linear model (GLM). We apply that model
 ```{r model 18}
 #################################################
 # Model 18 - generalized linear model (GLM)
-# train_glm <- train(rating ~ movieId + userId, method = "glm", data = edx_train)
-# 
-# model18_predict <- predict(train_glm, edx_test)
-# 
-# rmse_model_18 <- RMSE(edx_test$rating, model18_predict)
-# 
-# rmse_results <- bind_rows(rmse_results,
-#                           data.frame(modelid = 18,
-#                                      method = "generalized linear model (movieId + userId)",
-#                                      RMSE = rmse_model_18,
-#                                      delta_model_target = rmse_model_18 - target_value))
-# 
-# rmse_results %>% knitr::kable()
+train_glm <- train(rating ~ movieId + userId, method = "glm", data = edx_train)
+
+model18_predict <- predict(train_glm, edx_test)
+
+rmse_model_18 <- RMSE(edx_test$rating, model18_predict)
+
+rmse_results <- bind_rows(rmse_results,
+                          data.frame(modelid = 18,
+                                     method = "generalized linear model (movieId + userId)",
+                                     RMSE = rmse_model_18,
+                                     delta_model_target = rmse_model_18 - target_value))
+
+rmse_results %>% knitr::kable()
 ```
 
 ## Model 19 - gamLOESS
 
-We use the local weighted regression (loess) model with the two predictors movieId and userId. The results are not significantly better compared to the overall rating average.
+We use the local weighted regression (loess) model with the predictor movieId. The results are not significantly better compared to the overall rating average.
 
 ```{r model 19}
 #################################################
 # Model 19 - local weighted regression (LOESS)
-# train_loess <- train(rating ~ movieId + userId, method = "gamLoess", data = edx_train)
-# 
-# model19_predict <- predict(train_loess, edx_test)
-# 
-# rmse_model_19 <- RMSE(edx_test$rating, model19_predict)
-# 
-# rmse_results <- bind_rows(rmse_results,
-#                           data.frame(modelid = 19,
-#                                      method = "gamLOESS",
-#                                      RMSE = rmse_model_19,
-#                                      delta_model_target = rmse_model_19 - target_value))
-# 
-# rmse_results %>% knitr::kable()
-# 
+train_loess <- train(rating ~ movieId, method = "gamLoess", data = edx_train)
+
+model19_predict <- predict(train_loess, edx_test)
+
+rmse_model_19 <- RMSE(edx_test$rating, model19_predict)
+
+rmse_results <- bind_rows(rmse_results,
+                          data.frame(modelid = 19,
+                                     method = "gamLOESS",
+                                     RMSE = rmse_model_19,
+                                     delta_model_target = rmse_model_19 - target_value))
+
+rmse_results %>% knitr::kable()
+
 # #Best model index finally
-# best_model_index <- which.min(rmse_results$delta_model_target) 
-# best_modelid <- rmse_results$modelid[best_model_index]
-# best_method <- rmse_results$method[best_model_index]
+best_model_index <- which.min(rmse_results$delta_model_target)
+best_modelid <- rmse_results$modelid[best_model_index]
+best_method <- rmse_results$method[best_model_index]
+```
+\newpage
+
+```{r stop timer Train and compare different models}
+#Stop timer
+mytimer$stop("Train and compare different models")
 ```
 
 # Results
+
+```{r start timer results}
+#Start timer
+mytimer$start("Results")
+```
 
 In summary, we conclude that the best result is achieved by regularized linear model `r best_modelid`, which has the five predictors movieId, userId, genres, movie_year, and raiting_year. Thus, in the next step, this model is validated by the validation set. The regularized model has the lambda value of `r lambda`.
 
@@ -1240,8 +1325,8 @@ b_rty <- edx_train %>% ###penalize rel_years with few n()
    summarize(b_rty = mean(rating - mu - b_i - b_u - b_g - b_my)/(n()+lambda))
 
 # Validation of the best model based on the validation set ####
-final_predict <- 
-   validation %>% 
+final_predict <-
+   validation %>%
    left_join(b_i, by = "movieId") %>%
    left_join(b_u, by = "userId") %>%
    left_join(b_g, by = "genres") %>%
@@ -1251,18 +1336,21 @@ final_predict <-
    pull(pred)
 ```
 
-It is important to check the results of the new predictions for NA's. The summary shows that there are 4 occurrences of NA's. 
+It is important to check the results of the new predictions for NA's. The summary shows that there are 4 occurrences of NA's.
 
 ```{r check for NAs}
 #Check if there are NA's in the predictions
-summary(final_predict) 
+summary(final_predict)
 ```
 
 Since these titles are movies that are very rarely watched and rated only once, we use the mean value instead of NA's for the final validation.
 
-```{r titles of movies with no rating, fig.width=8}
+```{r titles of movies with no rating, fig.width=5}
 # Get titles of movies with no rating
-validation %>% filter(is.na(final_predict)) %>% pull(title, rating)
+validation %>% 
+   filter(is.na(final_predict)) %>% 
+   select(title, rating) %>% 
+   knitr::kable()
 ```
 
 ```{r final prediction}
@@ -1283,10 +1371,35 @@ rmse_results %>% knitr::kable()
 
 The result of the validation is in line with expectations: During the data analysis, we saw that the ratings vary widely. The predictor movieId has turned out to be the one with the greatest influence, followed by userId. Even if the extension by the other variables has only resulted in minor improvements, in the end a regularized linear model with five predictors turns out to be the best. The generalized linear model performs worse because it assumes a linear relationship for all predictors. The local weighted regression (loess) model assumes that within very small windows the data are linear or parabolic. The different weighting of the data points within a span turns out differently. Looking at the two predictors movieId and userId, we see that these categorical variables are very independent of each other, even when they are right next to each other.
 
+\newpage
+```{r stop timer results}
+#Stop timer
+mytimer$stop("Results")
+```
+
 # Conclusion
 
-In summary, the following results of the project can be pointed out: The given target value of 0.86490 could be undercut in several cases with different models. The best model trained was model `r best_modelid` - `r best_method`. This model reached a RMSE value of `r final_model_rmse` in the validation.
+```{r start timer conclusion}
+#Start timer
+mytimer$start("Conclusion")
+```
+
+In summary, the following results of the project ca n be pointed out: The given target value of 0.86490 could be undercut in several cases with different models. The best model trained was model `r best_modelid` - `r best_method`. This model reached a RMSE value of `r final_model_rmse` in the validation.
 
 The limitations of this report were the following: First, the evaluations were performed on a limited number of predictors. Second, only a fraction of possible models were elaborated, this also applies to the different combinations of predictors.
 
 For future work, several considerations could apply: On the one hand, the training data could be enlarged. In addition, more models could be used in combination with more predictors to obtain better results. For example, neural networks could be used as further models to enable deep learning algorithms. Further predictors that could help to improve the results would be, for example, actors, film length, production costs, language, but also country-specific characteristics - altogether as a broader database.
+
+```{r stop timer conclusion}
+#Stop timer
+mytimer$stop("Conclusion")
+```
+Finally, we give a quick summary of the start, end, and elapsed time (in minutes) when running the different sections. 
+
+```{r timer summary}
+#Get timer summary
+getTimer(mytimer) %>%  
+   mutate(timeElapsed_min = round(as.numeric(timeElapsed/60),2)) %>%
+   select(event, start, end, timeElapsed_min) %>% 
+   knitr::kable()
+```
